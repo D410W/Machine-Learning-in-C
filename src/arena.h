@@ -59,6 +59,7 @@ void arena_pop_to(ArenaAlloc* arena, size_t position);
 void arena_clear(ArenaAlloc* arena);
 
 #ifdef ARENA_IMPLEMENTATION
+#undef ARENA_IMPLEMENTATION
 
 ArenaAlloc* arena_create(size_t capacity) {
   ArenaAlloc* arena = (ArenaAlloc*)malloc(capacity);

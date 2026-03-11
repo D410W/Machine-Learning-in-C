@@ -50,6 +50,7 @@ f32 rng_fnorm_gen(f32 deviation, f32 mean);
 void platform_get_entropy(void* data, size_t size);
 
 #ifdef RANDOM_IMPLEMENTATION
+#undef RANDOM_IMPLEMENTATION
 
 static RNGState global_rng_state= {0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL, NAN};
 

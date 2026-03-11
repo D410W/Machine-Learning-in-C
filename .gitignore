@@ -1,3 +1,10 @@
 build
+venv
+
 nob
 nob.old
+
+test_images
+test_labels
+train_images
+train_labels
