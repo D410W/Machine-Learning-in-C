@@ -51,12 +51,23 @@ typedef struct {
   size_t position;
 } ArenaAlloc;
 
+typedef struct {
+  ArenaAlloc* arena;
+  size_t position;
+} ArenaAllocTemp;
+
 ArenaAlloc* arena_create(size_t capacity);
 void arena_destroy(ArenaAlloc* arena);
 void* arena_push(ArenaAlloc* arena, size_t size, bool zero_out);
 void arena_pop(ArenaAlloc* arena, size_t size);
 void arena_pop_to(ArenaAlloc* arena, size_t position);
 void arena_clear(ArenaAlloc* arena);
+
+
+ArenaAllocTemp arena_temp_begin(ArenaAlloc* arena);
+void arena_temp_end(ArenaAllocTemp);
+ArenaAllocTemp arena_scratch_begin(size_t min_arena_capacity); // min_arena_capacity defaults to 16Mb
+void arena_scratch_end(ArenaAllocTemp scratch);
 
 #ifdef ARENA_IMPLEMENTATION
 #undef ARENA_IMPLEMENTATION
@@ -99,6 +110,38 @@ void arena_pop_to(ArenaAlloc* arena, size_t position) {
 }
 void arena_clear(ArenaAlloc* arena) {
   arena_pop_to(arena, ARENA_BASE_POS);
+}
+
+ArenaAllocTemp arena_temp_begin(ArenaAlloc* arena) {
+  if (arena == NULL) return (ArenaAllocTemp) {};
+  
+  return (ArenaAllocTemp) {
+    .arena = arena,
+    .position = arena->position,
+  };
+}
+void arena_temp_end(ArenaAllocTemp temp) {
+  arena_pop_to(temp.arena, temp.position);
+}
+
+static __thread ArenaAlloc* _scratch_arena = NULL;
+void _scratch_arena_destroy() {
+  arena_destroy(_scratch_arena);
+}
+
+ArenaAllocTemp arena_scratch_begin(size_t min_arena_capacity) { // min_arena_capacity defaults to 16Mb
+  if (_scratch_arena == NULL) {
+    _scratch_arena = arena_create(MIN(MiB(16), min_arena_capacity));
+    atexit( _scratch_arena_destroy );
+  } else if (_scratch_arena->capacity < min_arena_capacity) {
+    arena_destroy(_scratch_arena);
+    _scratch_arena = arena_create(min_arena_capacity);
+  }
+  return arena_temp_begin(_scratch_arena);
+}
+
+void arena_scratch_end(ArenaAllocTemp scratch) {
+  arena_temp_end(scratch);
 }
 
 #endif // ARENA_IMPLEMENTATION

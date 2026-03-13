@@ -30,7 +30,11 @@ int main(int argc, char **argv)
   nob_cc_flags(&cmd);
   nob_cc_output(&cmd, BUILD_FOLDER "mlearning");
   nob_cc_inputs(&cmd, SRC_FOLDER "main.c");
-  nob_cmd_append(&cmd, "-lm");
+  nob_cmd_append(&cmd, "-lm", "-g");
+
+  if (argc > 1) {
+    nob_cmd_append(&cmd, argv[1]);
+  }
   
 #if defined(_WIN32)
   nob_cmd_append(&cmd, "-lBcrypt");

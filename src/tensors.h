@@ -6,6 +6,8 @@
 
 #define SHORT_TYPES
 #include "arena.h"
+#define RANDOM_IMPLEMENTATION
+#include "random.h"
 
 typedef struct {
   size_t rows, cols;
@@ -18,8 +20,10 @@ bool mat_copy(Matrix* dst, Matrix* src);
 bool mat_copy_section(Matrix* dst, Matrix* src, size_t start);
 void mat_clear(Matrix* matrix);
 void mat_fill(Matrix* matrix, f32 value);
+void mat_fill_rand(Matrix* matrix, f32 lower, f32 upper);
 void mat_scale(Matrix* matrix, f32 scale);
-f32 mat_sum(Matrix* mat);
+f32 mat_sum(Matrix* matrix);
+size_t mat_argmax(Matrix* matrix);
 
 void mat_draw(FILE* stream, Matrix *mat);
 
@@ -31,9 +35,9 @@ bool mat_relu(Matrix* out, const Matrix* in); // MAX(0.0, x)
 bool mat_softmax(Matrix* out, const Matrix* in); // turns input vector into probab. distr.
 bool mat_cross_entropy(Matrix* out, const Matrix* p, const Matrix* q); // cost function
 
-bool mat_relu_add_grad(Matrix* out, const Matrix* in);
-bool mat_softmax_add_grad(Matrix* out, const Matrix* softmax_out);
-bool mat_cross_entropy_add_grad(Matrix* out, const Matrix* p, const Matrix* q);
+bool mat_relu_add_grad(Matrix* out, const Matrix* in, const Matrix* gradient);
+bool mat_softmax_add_grad(Matrix* out, const Matrix* softmax_out, const Matrix* gradient);
+bool mat_cross_entropy_add_grad(Matrix* p_gradient, Matrix* q_gradient, const Matrix* p, const Matrix* q, const Matrix* gradient);
 
 #ifdef TENSORS_IMPLEMENTATION
 #undef TENSORS_IMPLEMENTATION
@@ -129,41 +133,62 @@ bool mat_copy_section(Matrix* dst, Matrix* src, size_t start) {
   return true;
 }
 
-void mat_clear(Matrix* mat) {
-  memset(mat->data, 0, sizeof(f32) * mat->rows * mat->cols);
+void mat_clear(Matrix* matrix) {
+  memset(matrix->data, 0, sizeof(f32) * matrix->rows * matrix->cols);
 }
 
-void mat_fill(Matrix* mat, f32 value) {
-  size_t size = mat->rows * mat->cols;
+void mat_fill(Matrix* matrix, f32 value) {
+  size_t size = matrix->rows * matrix->cols;
   
   for (size_t i = 0; i < size; ++i) {
-    mat->data[i] = value;
+    matrix->data[i] = value;
   }
 }
 
-void mat_scale(Matrix* mat, f32 scale) {
-  size_t size = mat->rows * mat->cols;
+void mat_fill_rand(Matrix* matrix, f32 lower, f32 upper) {
+  size_t size = matrix->rows * matrix->cols;
   
   for (size_t i = 0; i < size; ++i) {
-    mat->data[i] *= scale;
+    matrix->data[i] = rng_fgen() * (upper - lower) + lower;
   }
 }
 
-f32 mat_sum(Matrix* mat) {
-  size_t size = mat->rows * mat->cols;
+void mat_scale(Matrix* matrix, f32 scale) {
+  size_t size = matrix->rows * matrix->cols;
+  
+  for (size_t i = 0; i < size; ++i) {
+    matrix->data[i] *= scale;
+  }
+}
+
+f32 mat_sum(Matrix* matrix) {
+  size_t size = matrix->rows * matrix->cols;
   
   f32 sum = 0;
   for (size_t i = 0; i < size; ++i) {
-    sum += mat->data[i];
+    sum += matrix->data[i];
   }
   
   return sum;
 }
 
-void mat_draw(FILE* stream, Matrix *mat) {
-  for (size_t i = 0; i < mat->rows; ++i) {
-    for (size_t j = 0; j < mat->cols; ++j) {
-      fprintf(stream, "\033[48;5;%dm  ", 232 + (u16)(mat->data[j + i * mat->cols] * 23.0));
+size_t mat_argmax(Matrix* matrix) {
+  size_t size = matrix->rows * matrix->cols;
+  
+  size_t max_i = 0;
+  for (size_t i = 0; i < size; ++i) {
+    if (matrix->data[i] > matrix->data[max_i]) {
+      max_i = i;
+    }
+  }
+  
+  return max_i;
+}
+
+void mat_draw(FILE* stream, Matrix *matrix) {
+  for (size_t i = 0; i < matrix->rows; ++i) {
+    for (size_t j = 0; j < matrix->cols; ++j) {
+      fprintf(stream, "\033[48;5;%dm  ", 232 + (u16)(matrix->data[j + i * matrix->cols] * 23.0));
     }
     fprintf(stream, "\n");
   }
@@ -245,10 +270,10 @@ bool mat_mul(
   size_t a_rows = transpose_a ? a->cols : a->rows;
   size_t a_cols = transpose_a ? a->rows : a->cols;
   size_t b_rows = transpose_b ? b->cols : b->rows;
-  // size_t b_cols = transpose_b ? b->rows : b->cols;
+  size_t b_cols = transpose_b ? b->rows : b->cols;
   
   if (a_cols != b_rows) return false;
-  if (out->rows != a_rows || out->cols != b_rows) return false;
+  if (out->rows != a_rows || out->cols != b_cols) return false;
   
   if (zero_out) mat_clear(out);
   
@@ -282,7 +307,7 @@ bool mat_softmax(Matrix* out, const Matrix* in) { // turns input vector into pro
   size_t size = in->cols * in->rows;
   for (size_t i = 0; i < size; ++i) {
     out->data[i] = expf(in->data[i]);
-    sum += in->data[i];
+    sum += expf(in->data[i]);
   }
   
   mat_scale(out, 1.0f / sum);
@@ -296,17 +321,69 @@ bool mat_cross_entropy(Matrix* out, const Matrix* p, const Matrix* q) { // cost 
 
   size_t size = p->cols * p->rows;
   for (size_t i = 0; i < size; ++i) {
-    out->data[i] = p->data[i] == 0.0f ? 0.0f : p->data[i] * -logf(q->data[i]); // might not need the negative here
+    out->data[i] = p->data[i] == 0.0f ? 0.0f : p->data[i] * -logf(q->data[i] + 1e-7f); // might not need the negative here
   }
   
   return true;  
 }
 
-bool mat_relu_add_grad(Matrix* out, const Matrix* in);
+bool mat_relu_add_grad(Matrix* output, const Matrix* input, const Matrix* gradient) {
+  if (output->rows != input->rows || output->cols != input->cols) return false;
+  if (output->rows != gradient->rows || output->cols != gradient->cols) return false;
+  
+  size_t size = input->cols * input->rows;
+  for (size_t i = 0; i < size; ++i) {
+    output->data[i] += input->data[i] > 0.0f ? gradient->data[i] : 0.0f;
+  }
+  
+  return true;
+}
 
-bool mat_softmax_add_grad(Matrix* out, const Matrix* softmax_out);
+bool mat_softmax_add_grad(Matrix* output, const Matrix* softmax_out, const Matrix* gradient) {
+  if (softmax_out->rows != 1 && softmax_out->cols != 1) return false;
+  
+  ArenaAllocTemp scratch = arena_scratch_begin(0);
+  
+  size_t size = MAX(softmax_out->rows, softmax_out->cols);
+  Matrix* jacobian = mat_create(scratch.arena, size, size);
+  
+  for (size_t i = 0; i < size; ++i) {
+    for (size_t j = 0; j < size; ++j) {
+      jacobian->data[j + i * size] = softmax_out->data[i] * ((i == j) - softmax_out->data[j]);
+    }
+  }
+  
+  mat_mul(output, jacobian, gradient, 0, 0, 0);
+  
+  arena_scratch_end(scratch);
+  
+  return true;
+}
 
-bool mat_cross_entropy_add_grad(Matrix* out, const Matrix* p, const Matrix* q);
+bool mat_cross_entropy_add_grad(Matrix* p_gradient, Matrix* q_gradient, const Matrix* p, const Matrix* q, const Matrix* gradient) {
+  if (p->rows != q->rows || p->cols != q->cols) return false;
+  
+  size_t size = p->cols * p->rows;
+  
+  if (p_gradient != NULL) {
+    if (p_gradient->rows != p->rows || p_gradient->cols != p->cols) return false;
+    
+    for (size_t i = 0; i < size; ++i) {
+      p_gradient->data[i] += -logf(q->data[i] + 1e-7f) * gradient->data[i];
+    }
+  }
+
+  if (q_gradient != NULL) {
+    if (q_gradient->rows != q->rows || q_gradient->cols != q->cols) return false;
+    
+    for (size_t i = 0; i < size; ++i) {
+      q_gradient->data[i] += -p->data[i] / (q->data[i] + 1e-7f) * gradient->data[i];
+    }
+  }
+
+  
+  return true; 
+}
 
 #endif // TENSORS_IMPLEMENTATION
 

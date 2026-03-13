@@ -84,7 +84,7 @@ f32 rng_fgen_r(RNGState* rng) {
 }
 
 f32 rng_fgen(void) {
-  return rng_gen_r(&global_rng_state);
+  return rng_fgen_r(&global_rng_state);
 }
 
 f32 rng_fnorm_gen_r(RNGState* rng, f32 deviation, f32 mean) {
