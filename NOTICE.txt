@@ -1,0 +1,5 @@
+Machine-Learning-in-C
+Copyright 2026 D410W
+
+This product includes software developed by Melissa O'Neill and the PCG Project
+(https://www.pcg-random.org/), which is licensed under the Apache License, Version 2.0.
