@@ -4,6 +4,12 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '4'
 import tensorflow_datasets as tfds
 import numpy as np
 
+import os
+try:
+    os.mkdir('datasets')
+except Exception as e:
+    ()
+
 def ds_to_numpy(ds):
   images = []
   labels = []
@@ -25,9 +31,9 @@ test_images = test_images.astype(np.float32) / 255.0
 train_labels = train_labels.astype(np.float32)
 test_labels = test_labels.astype(np.float32)
 
-train_images.astype('float32').tofile('train_images')
-test_images.astype('float32').tofile('test_images')
+train_images.astype('float32').tofile('datasets/train_images')
+test_images.astype('float32').tofile('datasets/test_images')
 
-train_labels.astype('float32').tofile('train_labels')
-test_labels.astype('float32').tofile('test_labels')
+train_labels.astype('float32').tofile('datasets/train_labels')
+test_labels.astype('float32').tofile('datasets/test_labels')
 

@@ -121,7 +121,8 @@ ArenaAllocTemp arena_temp_begin(ArenaAlloc* arena) {
   };
 }
 void arena_temp_end(ArenaAllocTemp temp) {
-  arena_pop_to(temp.arena, temp.position);
+  if (temp.arena != NULL)
+    arena_pop_to(temp.arena, temp.position);
 }
 
 static __thread ArenaAlloc* _scratch_arena = NULL;

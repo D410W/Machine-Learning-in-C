@@ -367,9 +367,9 @@ void model_train(ModelContext* model, const ModelTrainingDesc* training_desc) {
   Matrix* test_output = training_desc->test_output;
   
   size_t num_examples = train_input->rows;
+  size_t num_tests = test_input->rows;
   size_t input_size = train_input->cols;
   size_t output_size = train_output->cols;
-  size_t num_tests = test_input->rows;
   
   size_t num_batches = num_examples / training_desc->batch_size;
   
@@ -441,7 +441,7 @@ void model_train(ModelContext* model, const ModelTrainingDesc* training_desc) {
       num_correct += mat_argmax(model->output->value) == mat_argmax(model->desired_output->value);
     }
     average_cost /= (f32)num_tests;
-    printf("Test completed. Accuracy: %5ld / %ld (%.1f%%), Average cost: %.4f\n",
+    printf("Testing completed. Accuracy: %5ld / %ld (%.1f%%), Average cost: %.4f\n",
            num_correct, num_tests, (f32)num_correct / (f32)num_tests * 100.0f, average_cost);
   } 
   
