@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     .extra_args_size = 0 },
   };
   
-  append_extra_arg(targets, 0, "-g");
+  // append_extra_arg(targets, 0, "-g");
   
 #if defined(_WIN32)
   append_extra_arg(targets, 0, "-lBcrypt");

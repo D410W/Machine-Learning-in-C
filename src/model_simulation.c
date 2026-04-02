@@ -50,7 +50,7 @@ void create_mnist_model(ArenaAlloc* arena, ModelContext* model) {
   ModelVar* output = mv_softmax(arena, model, z3_b, MV_FLAG_OUTPUT);
   
   ModelVar* desired_output = mv_create(arena, model, 10, 1, MV_FLAG_DESIRED_OUTPUT);
-  ModelVar* cost = mv_cross_entropy(arena, model, desired_output, output, MV_FLAG_COST);
+  /* ModelVar* cost = */ mv_cross_entropy(arena, model, desired_output, output, MV_FLAG_COST);
 }
 
 bool mat_from_bmp_mnist(ArenaAlloc* arena, Matrix* matrix, char* file_name) {
@@ -128,14 +128,14 @@ int main() {
   
   if (train_images == NULL || test_images == NULL ||
       train_labels == NULL || test_labels == NULL) {
-    fprintf(stderr, "Not enough memory.\n"); arena_destroy(arena); return 0;
+    fprintf(stderr, "Not enough memory.\n"); arena_destroy(arena); return 1;
   }
   
   if (!mat_load(train_images, "datasets/train_images", NULL)) {
-    printf("Could not load 'datasets/train_images' matrix.\n"); arena_destroy(arena); return 0;
+    printf("Could not load 'datasets/train_images' matrix.\n"); arena_destroy(arena); return 1;
   }
   if (!mat_load(test_images, "datasets/test_images", NULL)) {
-    printf("Could not load 'datasets/test_images' matrix.\n"); arena_destroy(arena); return 0;
+    printf("Could not load 'datasets/test_images' matrix.\n"); arena_destroy(arena); return 1;
   }
 
   {
@@ -147,13 +147,13 @@ int main() {
     if (train_labels_file == NULL || test_labels_file == NULL) {
       fprintf(stderr, "Not enough memory.\n");
       arena_destroy(arena);
-      return 0;
+      return 1;
     }
     
     if (!mat_load(train_labels_file, "datasets/train_labels", NULL)) {
-      printf("Could not load 'datasets/train_labels' matrix.\n"); arena_destroy(arena); return 0; }
+      printf("Could not load 'datasets/train_labels' matrix.\n"); arena_destroy(arena); return 1; }
     if (!mat_load(test_labels_file, "datasets/test_labels", NULL)) {
-      printf("Could not load 'datasets/test_labels' matrix.\n"); arena_destroy(arena); return 0; }
+      printf("Could not load 'datasets/test_labels' matrix.\n"); arena_destroy(arena); return 1; }
     
     for (size_t i = 0; i < 60000; ++i) {
       size_t num = roundf(train_labels_file->data[i]);
